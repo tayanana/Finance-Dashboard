@@ -29,11 +29,5 @@ This project is developed as part of the "Getting it started in web programming"
 ## System Architecture
 The application follows a standard client-server model. The frontend browser sends asynchronous requests to the Node.js/Express backend. The backend queries the MySQL database, formats the result set into JSON, and returns it to the client, where DataTables and Chart.js render the data into the UI.
 
-## Phase 1 Deliverables
-* Concept documentation
-* Entity Relationship Diagram (ERD)
-* System Architecture Diagram
-* Repository initialization
-
 ---
 *Developed by Tayanana Zifamba.*
