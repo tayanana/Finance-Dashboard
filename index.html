@@ -24,8 +24,11 @@
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card shadow-sm">
-                    <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
-                        <h4 class="card-title">Transaction Log</h4>
+                    <div class="card-header bg-white border-bottom-0 pt-4 pb-0 d-flex justify-content-between align-items-center">
+                        <h4 class="card-title mb-0">Transaction Log</h4>
+                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addTransactionModal">
+                            Add Transaction
+                        </button>
                     </div>
                     <div class="card-body">
                         <table id="transactionsTable" class="table table-striped table-hover" style="width:100%">
@@ -39,7 +42,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                </tbody>
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -47,15 +50,59 @@
         </div>
     </div>
 
+    <!-- Add Transaction Modal -->
+    <div class="modal fade" id="addTransactionModal" tabindex="-1" aria-labelledby="addTransactionModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="addTransactionForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addTransactionModalLabel">New Transaction</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="transaction_date" class="form-label">Date</label>
+                            <input type="date" class="form-control" id="transaction_date" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="amount" class="form-label">Amount</label>
+                            <input type="number" step="0.01" class="form-control" id="amount" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <input type="text" class="form-control" id="description" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="category_id" class="form-label">Category</label>
+                            <select class="form-select" id="category_id" required>
+                                <option value="">Select a category...</option>
+                                <!-- Populated via AJAX -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Transaction</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
         $(document).ready(function() {
+            // Authentication Check
+if (!localStorage.getItem('authToken')) {
+    window.location.href = 'login.html';
+    return;
+}
             // Initialize the DataTable
             $('#transactionsTable').DataTable({
-                // Fetch the JSON from your Express server
                 ajax: {
                     url: 'http://localhost:3000/api/transactions',
                     dataSrc: '' 
@@ -107,6 +154,58 @@
                 ],
                 order: [[0, 'desc']],
                 pageLength: 10
+            });
+
+            // Fetch categories and populate the form dropdown
+            fetch('http://localhost:3000/api/categories')
+                .then(response => response.json())
+                .then(data => {
+                    const categorySelect = document.getElementById('category_id');
+                    data.forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category.id;
+                        option.textContent = category.name + " (" + category.type + ")";
+                        categorySelect.appendChild(option);
+                    });
+                });
+
+            // Handle form submission
+            document.getElementById('addTransactionForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const transactionData = {
+                    transaction_date: document.getElementById('transaction_date').value,
+                    amount: parseFloat(document.getElementById('amount').value),
+                    description: document.getElementById('description').value,
+                    category_id: parseInt(document.getElementById('category_id').value)
+                };
+
+                fetch('http://localhost:3000/api/transactions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(transactionData)
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Network error');
+                    return response.json();
+                })
+                .then(data => {
+                    // Close the modal
+                    const modalElement = document.getElementById('addTransactionModal');
+                    const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                    if (modalInstance) {
+                        modalInstance.hide();
+                    }
+                    
+                    // Reset the form
+                    document.getElementById('addTransactionForm').reset();
+                    
+                    // Reload the DataTable
+                    $('#transactionsTable').DataTable().ajax.reload();
+                })
+                .catch(error => console.error('Error:', error));
             });
         });
     </script>

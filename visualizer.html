@@ -20,7 +20,26 @@
     </nav>
 
     <div class="container">
+        <!-- Date Filter Row -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-body d-flex flex-wrap align-items-center gap-3">
+                        <label for="startDate" class="fw-bold">Start Date:</label>
+                        <input type="date" id="startDate" class="form-control w-auto">
+                        
+                        <label for="endDate" class="fw-bold">End Date:</label>
+                        <input type="date" id="endDate" class="form-control w-auto">
+                        
+                        <button id="applyFiltersBtn" class="btn btn-primary">Apply Filters</button>
+                        <button id="clearFiltersBtn" class="btn btn-outline-secondary">Clear</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="row">
+            <!-- Pie Chart Column -->
             <div class="col-md-6 mb-4">
                 <div class="card shadow-sm h-100">
                     <div class="card-header bg-white pt-3 pb-2">
@@ -32,6 +51,7 @@
                 </div>
             </div>
             
+            <!-- Bar Chart Column -->
             <div class="col-md-6 mb-4">
                 <div class="card shadow-sm h-100">
                     <div class="card-header bg-white pt-3 pb-2">
@@ -49,65 +69,112 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            
-            // 1. Fetch and render Pie Chart (Expenses by Category)
-            fetch('http://localhost:3000/api/expenses-by-category')
-                .then(response => response.json())
-                .then(data => {
-                    const ctx = document.getElementById('categoryPieChart').getContext('2d');
-                    new Chart(ctx, {
-                        type: 'pie',
-                        data: {
-                            labels: data.map(row => row.category),
-                            datasets: [{
-                                data: data.map(row => row.total),
-                                backgroundColor: [
-                                    '#FF6384', '#36A2EB', '#FFCE56', 
-                                    '#4BC0C0', '#9966FF', '#FF9F40'
-                                ]
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            plugins: {
-                                legend: { position: 'bottom' }
-                            }
-                        }
-                    });
-                })
-                .catch(error => console.error('Error fetching pie chart data:', error));
+            // Authentication Check
+if (!localStorage.getItem('authToken')) {
+    window.location.href = 'login.html';
+    return;
+}
+            let pieChartInstance = null;
+            let barChartInstance = null;
 
-            // 2. Fetch and render Bar Chart (Monthly Trends)
-            fetch('http://localhost:3000/api/monthly-summary')
-                .then(response => response.json())
-                .then(data => {
-                    const ctx = document.getElementById('monthlyBarChart').getContext('2d');
-                    new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: data.map(row => row.month),
-                            datasets: [
-                                {
-                                    label: 'Income',
-                                    data: data.map(row => row.income),
-                                    backgroundColor: '#4BC0C0'
-                                },
-                                {
-                                    label: 'Expense',
-                                    data: data.map(row => row.expense),
-                                    backgroundColor: '#FF6384'
-                                }
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            scales: {
-                                y: { beginAtZero: true }
-                            }
+            function loadCharts(startDate = '', endDate = '') {
+                // Construct the query string if dates are provided
+                let queryString = '';
+                if (startDate && endDate) {
+                    queryString = `?startDate=${startDate}&endDate=${endDate}`;
+                }
+
+                // 1. Fetch and render Pie Chart
+                fetch(`http://localhost:3000/api/expenses-by-category${queryString}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const ctx = document.getElementById('categoryPieChart').getContext('2d');
+                        
+                        // Destroy existing chart to prevent hover glitching
+                        if (pieChartInstance) {
+                            pieChartInstance.destroy();
                         }
-                    });
-                })
-                .catch(error => console.error('Error fetching bar chart data:', error));
+
+                        pieChartInstance = new Chart(ctx, {
+                            type: 'pie',
+                            data: {
+                                labels: data.map(row => row.category),
+                                datasets: [{
+                                    data: data.map(row => row.total),
+                                    backgroundColor: [
+                                        '#FF6384', '#36A2EB', '#FFCE56', 
+                                        '#4BC0C0', '#9966FF', '#FF9F40'
+                                    ]
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                plugins: {
+                                    legend: { position: 'bottom' }
+                                }
+                            }
+                        });
+                    })
+                    .catch(error => console.error('Error fetching pie chart data:', error));
+
+                // 2. Fetch and render Bar Chart
+                fetch(`http://localhost:3000/api/monthly-summary${queryString}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const ctx = document.getElementById('monthlyBarChart').getContext('2d');
+                        
+                        // Destroy existing chart to prevent hover glitching
+                        if (barChartInstance) {
+                            barChartInstance.destroy();
+                        }
+
+                        barChartInstance = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: data.map(row => row.month),
+                                datasets: [
+                                    {
+                                        label: 'Income',
+                                        data: data.map(row => row.income),
+                                        backgroundColor: '#4BC0C0'
+                                    },
+                                    {
+                                        label: 'Expense',
+                                        data: data.map(row => row.expense),
+                                        backgroundColor: '#FF6384'
+                                    }
+                                ]
+                            },
+                            options: {
+                                responsive: true,
+                                scales: {
+                                    y: { beginAtZero: true }
+                                }
+                            }
+                        });
+                    })
+                    .catch(error => console.error('Error fetching bar chart data:', error));
+            }
+
+            // Initial load
+            loadCharts();
+
+            // Button Event Listeners
+            document.getElementById('applyFiltersBtn').addEventListener('click', () => {
+                const start = document.getElementById('startDate').value;
+                const end = document.getElementById('endDate').value;
+                if (start && end) {
+                    loadCharts(start, end);
+                } else {
+                    alert("Please select both a start and end date.");
+                }
+            });
+
+            document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+                document.getElementById('startDate').value = '';
+                document.getElementById('endDate').value = '';
+                loadCharts();
+            });
         });
     </script>
 </body>
